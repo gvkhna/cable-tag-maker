@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "arturodent.custom-language-syntax",
+    "astro-build.astro-vscode",
+    "bradlc.vscode-tailwindcss",
+    "dbaeumer.vscode-eslint",
+    "editorconfig.editorconfig",
+    "medo64.render-crlf",
+    "esbenp.prettier-vscode"
+  ],
+  "unwantedRecommendations": []
+}
