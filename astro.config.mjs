@@ -3,9 +3,12 @@ dotenv.config()
 import {defineConfig} from 'astro/config'
 import tailwind from '@astrojs/tailwind'
 import react from '@astrojs/react'
-import node from '@astrojs/node'
+
+const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL
 
 export default defineConfig({
+  site: PUBLIC_SITE_URL,
+  base: '/cable-tag-maker',
   build: {
     inlineStylesheets: 'auto'
   },
@@ -13,9 +16,6 @@ export default defineConfig({
   devToolbar: {
     enabled: false
   },
-  // adapter: node({
-  //   mode: 'standalone'
-  // }),
   srcDir: './src/',
   publicDir: './public/',
   compressHTML: true,
