@@ -1,25 +1,22 @@
 import {useState, useEffect, useRef, type KeyboardEvent} from 'react'
-import html2canvas from 'html2canvas'
 import {XCircleIcon, PrinterIcon} from '@heroicons/react/20/solid'
-import debounce from 'lodash-es/debounce'
 import throttle from 'lodash-es/throttle'
 
 export default function Page() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const labelRefs = useRef<(HTMLDivElement | null)[]>([])
-  // const [labels, setLabels] = useState(['Testing Cable', 'Testing Cable 2', 'Testing Cable 3'])
 
   const [labels, setLabels] = useState([''])
 
   const [isOverflow, setIsOverflow] = useState(false)
-  const maxWidthInInches = 4
-  const maxHeightInInches = 6
+  const labelWidthInInches = 4
+  const labelHeightInInches = 6
   const inchToPixel = 96 // 1 inch is approximately 96 pixels
   const printingDPI = 300
 
-  const labelXMargin = 18
-  const textTracking = 8
+  const cableTagTextPadding = 18
+  const cableTagTextLineSpacing = 8
+  const cableTagCutLineThickness = 2
 
   const printSingleCableTag = (
     text: string,
@@ -45,30 +42,31 @@ export default function Page() {
     const textWidth = Math.ceil(textMetrics.width)
 
     // Calculate the total space available (width-wise, since the text is rotated)
-    const totalSpaceAvailable = canvas.height - 2 * labelXMargin
+    const totalSpaceAvailable = canvas.height - 2 * cableTagTextPadding
 
     // Calculate the number of times the text can be repeated
-    const repetitions = Math.floor((totalSpaceAvailable + textTracking) / (singleTextHeight + textTracking))
+    const repetitions = Math.floor(
+      (totalSpaceAvailable + cableTagTextLineSpacing) / (singleTextHeight + cableTagTextLineSpacing)
+    )
 
     // Loop and draw the text
     for (let i = 0; i < repetitions; i++) {
-      const yPos = labelXMargin + i * (singleTextHeight + textTracking)
-      ctx.fillText(text.toUpperCase(), labelXMargin + yOffset, yPos) // Adjust x, y position as needed
+      const yPos = cableTagTextPadding + i * (singleTextHeight + cableTagTextLineSpacing)
+      ctx.fillText(text.toUpperCase(), cableTagTextPadding + yOffset, yPos) // Adjust x, y position as needed
     }
 
     ctx.restore()
-    const cutLineYStart = textWidth + labelXMargin * 2
-    const cutLineThickness = 2
+    const cutLineYStart = textWidth + cableTagTextPadding * 2
 
-    console.log(cutLineYStart + cutLineThickness + yOffset > height, cutLineYStart + yOffset, height)
-    if (cutLineYStart + cutLineThickness + yOffset > height) {
+    console.log(cutLineYStart + cableTagCutLineThickness + yOffset > height, cutLineYStart + yOffset, height)
+    if (cutLineYStart + cableTagCutLineThickness + yOffset > height) {
       setIsOverflow(true)
     }
 
     if (text) {
-      ctx.fillRect(0, cutLineYStart + yOffset, width, cutLineThickness)
+      ctx.fillRect(0, cutLineYStart + yOffset, width, cableTagCutLineThickness)
     }
-    return cutLineYStart + cutLineThickness
+    return cutLineYStart + cableTagCutLineThickness
   }
 
   const updateCanvas = throttle(
@@ -78,10 +76,8 @@ export default function Page() {
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
 
-        const widthInches = 4
-        const heightInches = 6
-        canvas.width = widthInches * printingDPI
-        canvas.height = heightInches * printingDPI
+        canvas.width = labelWidthInInches * printingDPI
+        canvas.height = labelHeightInInches * printingDPI
 
         if (ctx) {
           // Scale context to dpi
