@@ -40,6 +40,9 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: ${{ env.BUILD_PATH }}
       - name: Build with Astro
+        env:
+          PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
+          PUBLIC_BASE_PATH: ${{ vars.PUBLIC_BASE_PATH }}
         run: |
           printenv | sort
           pnpm run astro build
