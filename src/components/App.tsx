@@ -1,7 +1,11 @@
 import {useState, useEffect, useRef, type KeyboardEvent} from 'react'
+import html2canvas from 'html2canvas'
 import {XCircleIcon, PrinterIcon} from '@heroicons/react/20/solid'
+import debounce from 'lodash-es/debounce'
+import throttle from 'lodash-es/throttle'
 
 export default function Page() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const labelRefs = useRef<(HTMLDivElement | null)[]>([])
   // const [labels, setLabels] = useState(['Testing Cable', 'Testing Cable 2', 'Testing Cable 3'])
@@ -9,24 +13,114 @@ export default function Page() {
   const [labels, setLabels] = useState([''])
 
   const [isOverflow, setIsOverflow] = useState(false)
+  const maxWidthInInches = 4
   const maxHeightInInches = 6
   const inchToPixel = 96 // 1 inch is approximately 96 pixels
+  const printingDPI = 300
+
+  const labelXMargin = 18
+  const textTracking = 8
+
+  const printSingleCableTag = (
+    text: string,
+    yOffset: number,
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number
+  ) => {
+    const fontSize = 14 // You can adjust the size of the font
+    ctx.font = `${fontSize}px monospace` // Set the font style
+    ctx.fillStyle = 'black' // Set the text color
+
+    // Set the origin to the top-middle of the canvas, and rotate the context by 90 degrees
+    ctx.save()
+
+    ctx.translate(width, 0) // Move to the right so you start drawing the text at bottom (because it's rotated)
+    ctx.rotate((90 * Math.PI) / 180)
+
+    // Calculate the space needed for one line of text (height-wise after rotation)
+    const textMetrics = ctx.measureText(text.toUpperCase())
+    const singleTextHeight = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent
+    const textWidth = Math.ceil(textMetrics.width)
+
+    // Calculate the total space available (width-wise, since the text is rotated)
+    const totalSpaceAvailable = canvas.height - 2 * labelXMargin
+
+    // Calculate the number of times the text can be repeated
+    const repetitions = Math.floor((totalSpaceAvailable + textTracking) / (singleTextHeight + textTracking))
+
+    // Loop and draw the text
+    for (let i = 0; i < repetitions; i++) {
+      const yPos = labelXMargin + i * (singleTextHeight + textTracking)
+      ctx.fillText(text.toUpperCase(), labelXMargin + yOffset, yPos) // Adjust x, y position as needed
+    }
+
+    ctx.restore()
+    const cutLineYStart = textWidth + labelXMargin * 2
+    const cutLineThickness = 2
+
+    console.log(cutLineYStart + cutLineThickness + yOffset > height, cutLineYStart + yOffset, height)
+    if (cutLineYStart + cutLineThickness + yOffset > height) {
+      setIsOverflow(true)
+    }
+
+    if (text) {
+      ctx.fillRect(0, cutLineYStart + yOffset, width, cutLineThickness)
+    }
+    return cutLineYStart + cutLineThickness
+  }
+
+  const updateCanvas = throttle(
+    () => {
+      if (canvasRef.current) {
+        setIsOverflow(false)
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+
+        const widthInches = 4
+        const heightInches = 6
+        canvas.width = widthInches * printingDPI
+        canvas.height = heightInches * printingDPI
+
+        if (ctx) {
+          // Scale context to dpi
+          const scaleWidth = printingDPI / inchToPixel
+          const scaleHeight = printingDPI / inchToPixel
+          ctx.scale(scaleWidth, scaleHeight) // Assuming screen DPI is 96
+
+          const canvasWidth = canvas.width / scaleWidth
+          const canvasHeight = canvas.height / scaleHeight
+
+          ctx.fillStyle = 'white'
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+          ctx.lineWidth = 1 // Adjust line width for the device pixel ratio
+          ctx.strokeStyle = '#bbb' // Border color
+          ctx.strokeRect(0, 0, canvasWidth, canvasHeight) // Draw border
+
+          let startY = 0
+          for (let i = 0; i < labels.length; i++) {
+            const newY = printSingleCableTag(labels[i], startY, canvas, ctx, canvasWidth, canvasHeight)
+            startY += newY
+          }
+
+          console.log('done rendering')
+        }
+      }
+    },
+    250,
+    {
+      leading: true,
+      trailing: true
+    }
+  )
 
   useEffect(() => {
     // Adjust the refs array length to match the number of labels
     inputRefs.current = inputRefs.current.slice(0, labels.length)
 
-    // Calculate total height of label lines
-    const totalHeight = labelRefs.current.reduce((acc, ref) => {
-      return acc + (ref ? ref.getBoundingClientRect().height : 0)
-    }, 0)
-
-    // Convert max height in inches to pixels and compare
-    if (totalHeight > maxHeightInInches * inchToPixel) {
-      setIsOverflow(true)
-    } else {
-      setIsOverflow(false)
-    }
+    updateCanvas()
   }, [labels])
 
   const focusNextInput = (index: number) => {
@@ -87,9 +181,9 @@ export default function Page() {
       </header>
       <main>
         <div className='mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:py-0'>
-          <div className='mx-auto grid max-w-2xl grid-cols-1 grid-rows-1 items-start gap-x-8 gap-y-8 lg:mx-0 lg:max-w-none lg:grid-cols-3 print:block'>
+          <div className='mx-auto grid max-w-2xl grid-cols-1 grid-rows-1 items-start gap-x-8 gap-y-8 lg:mx-0 lg:max-w-none lg:grid-cols-2 print:block'>
             {/* Label Creation */}
-            <div className='lg:col-start-3 lg:row-end-1 print:hidden'>
+            <div className='lg:col-start-2 lg:row-end-1 print:hidden'>
               <h2 className='sr-only'>Summary</h2>
               <div
                 className={`rounded-lg ${isOverflow ? 'bg-red-300' : 'bg-gray-50'} shadow-sm ring-1 ring-gray-900/5`}
@@ -102,7 +196,10 @@ export default function Page() {
                   <div className='mt-6 flex w-full flex-none gap-x-4 border-t border-gray-900/5 px-6 pt-4'>
                     <div className='flex flex-1 flex-col space-y-3'>
                       {labels.map((label, index) => (
-                        <div className='flex flex-1 items-center space-x-4'>
+                        <div
+                          className='flex flex-1 items-center space-x-4'
+                          key={`input-${index}`}
+                        >
                           <input
                             type='text'
                             value={label}
@@ -152,26 +249,12 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Printer Label Preview */}
-            <div className='mx-auto w-full overflow-hidden ring-1 ring-gray-900/5 sm:rounded-lg md:h-[6in] md:w-[4in] lg:col-span-2 lg:row-span-2 lg:row-end-2 print:max-h-[6in] print:max-w-[4in] '>
-              <div className='mx-auto overflow-hidden px-2'>
-                {/* <div className='-mx-4 px-4 py-8  sm:mx-0  sm:px-8 sm:pb-14  xl:px-16 xl:pb-20 xl:pt-16'> */}
-                {labels.map((label, index) => (
-                  <div
-                    key={index}
-                    ref={(el) => (labelRefs.current[index] = el)}
-                    className='max-w-[3.75in] overflow-hidden border-b-2 border-black py-6'
-                    style={{
-                      writingMode: 'vertical-rl',
-                      textOrientation: 'mixed'
-                    }}
-                  >
-                    {[...Array(40)].map((n, i) => (
-                      <p className='font-mono text-sm font-semibold uppercase leading-4 tracking-wide'>{label}</p>
-                    ))}
-                  </div>
-                ))}
-              </div>
+            <div className='mx-auto flex w-full justify-center'>
+              <canvas
+                id='printer-canvas'
+                ref={canvasRef}
+                className='w-full md:h-[6in] md:w-[4in] print:max-h-[6in] print:max-w-[4in]'
+              ></canvas>
             </div>
           </div>
         </div>

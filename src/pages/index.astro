@@ -20,10 +20,14 @@ import App from '@components/App'
     />
     <style>
       @page {
-        margin-left: 0px;
-        margin-right: 0px;
-        margin-top: 0px;
-        margin-bottom: 0px;
+        margin: 0px !important;
+      }
+      @media print {
+        @page {
+          margin: 0in !important;
+          size: 4in 6in !important;
+          size: portrait !important;
+        }
       }
     </style>
   </head>
