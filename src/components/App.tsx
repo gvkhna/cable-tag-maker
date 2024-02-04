@@ -3,6 +3,7 @@ import {XCircleIcon, PrinterIcon} from '@heroicons/react/20/solid'
 import throttle from 'lodash-es/throttle'
 
 export default function Page() {
+  const displayImageRef = useRef<HTMLImageElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
@@ -101,7 +102,10 @@ export default function Page() {
             startY += newY
           }
 
-          console.log('done rendering')
+          const img = displayImageRef.current
+          if (img) {
+            img.src = canvas.toDataURL('image/png')
+          }
         }
       }
     },
@@ -247,10 +251,14 @@ export default function Page() {
 
             <div className='mx-auto flex w-full justify-center'>
               <canvas
-                id='printer-canvas'
                 ref={canvasRef}
-                className='w-full md:h-[6in] md:w-[4in] print:max-h-[6in] print:max-w-[4in]'
+                className='hidden'
+                // className='w-full md:h-[6in] md:w-[4in] print:max-h-[6in] print:max-w-[4in]'
               ></canvas>
+              <img
+                ref={displayImageRef}
+                className='w-full md:h-[6in] md:w-[4in] print:max-h-[6in] print:max-w-[4in]'
+              />
             </div>
           </div>
         </div>
